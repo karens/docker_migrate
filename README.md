@@ -9,9 +9,8 @@ Do a git checkout of the repos for the D7 and D8 sites into d7 and d8 folders. T
 - .env
 - docker-compose.yml
 - makefile
-- docker-files
+- docker-info
 	- // D7 and D8 settings.local.php files.
-- data
 	- // Empty db dump, updated later using Drush. 
 - drush
 	- // Drush aliases, including Drush 9 version. 
@@ -20,7 +19,12 @@ Do a git checkout of the repos for the D7 and D8 sites into d7 and d8 folders. T
 - d7
 	- // Git checkout of the D7 site goes here, excluded from repo.
 
-Note that this docker-compose configuration passes your ssh credentials and drush aliases into the container, which should be fine for working locally but may need to be adjusted if used in a public location.
+Note that this docker-compose configuration passes your ssh credentials and drush aliases into the container, which should be fine for working locally but may need to be adjusted if used in a public location. If your ssh keys are required, be sure to set the username you use on remote sites in your ssh config file, since the container won't use the correct username otherwise:
+
+```
+Host d7.com d8.com
+  User karen
+```
 
 ## Usage
 
@@ -46,12 +50,12 @@ mailhog_1    | [APIv1] KEEPALIVE /api/v1/events
 Once the containers are up and running, you can use commands in the makefile to build and update the sites.
 
 ```
-make build
+make create
 ```
 Visit the sites in a browser to see that they are working. The urls are based on the project name in the .env file, with ports identified in the docker-compose file. If the project name is 'lullabot', the browser addresses are:
 
 ```
-http://lullabot7.docker.localhost:8007
+http://lullabot7.docker.localhost:8000
 http://lullabot8.docker.localhost:8000
 ```
 Some browsers, like Chrome, will automatically handle any url that ends with `localhost`, otherwise you may have to add this to your hosts file. 

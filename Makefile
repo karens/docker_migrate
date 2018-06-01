@@ -10,8 +10,7 @@ PROJECT_PATH7=docroot
 CURRENT_DIR=$(shell pwd)
 PARENT_ROOT=${CURRENT_DIR}/d8/${PROJECT_PATH}
 PARENT_ROOT7=${CURRENT_DIR}/d7/${PROJECT_PATH7}
-DATA_DIR=data
-DOCKER_DIR=docker-files
+DOCKER_DIR=docker-info
 
 # Container paths
 CONTAINER_ROOT=/var/www/html
@@ -22,6 +21,7 @@ FILES_DIR=${SITES_DIR}/files
 CONFIG_DIR=${SITES_DIR}/files/sync
 
 # Source data
+DRUSH_ALIAS7=@lullabot.dev
 SETTINGS=${PARENT_ROOT}/${SITES_DIR}/settings.php
 SETTINGS7=${PARENT_ROOT7}/${SITES_DIR}/settings.php
 SETTINGS_LOCAL=${DOCKER_DIR}/settings.docker.local.php
@@ -62,6 +62,9 @@ initialize:
 	if [ ! -f ${PARENT_ROOT}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT}/${FILES_DIR}; fi;
 	chmod -R g+w ${PARENT_ROOT}/${FILES_DIR}
 	chmod 2775 ${PARENT_ROOT}/${FILES_DIR}
+	# Druah 9-style alias
+	if [ ! -f ${CURRENT_DIR}/d8/drush ]; then mkdir ${CURRENT_DIR}/d8/drush; fi;
+	if [ ! -f ${CURRENT_DIR}/d8/drush/sites ]; then mkdir ${CURRENT_DIR}/d8/drush/sites; fi;
 	cp ${CURRENT_DIR}/drush/sites/docker.site.yml ${CURRENT_DIR}/d8/drush/sites/docker.site.yml
 
 # Set up D7 site
@@ -76,6 +79,10 @@ initialize7:
 	if [ ! -f ${PARENT_ROOT7}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT7}/${FILES_DIR}; fi;
 	chmod -R g+w ${PARENT_ROOT7}/${FILES_DIR}
 	chmod 2775 ${PARENT_ROOT7}/${FILES_DIR}
+	# Drush 8-style alias
+	if [ ! -f ${CURRENT_DIR}/d7/drush ]; then mkdir ${CURRENT_DIR}/d7/drush; fi;
+	if [ ! -f ${CURRENT_DIR}/d7/drush/site-aliases ]; then mkdir ${CURRENT_DIR}/d7/drush/site-aliases; fi;
+	cp ${CURRENT_DIR}/drush/site-aliases/docker7.aliases.drushrc.php ${CURRENT_DIR}/d7/drush/site-aliases/docker7.aliases.drushrc.php
 
 # Create empty D8 site from stored configuration.
 # Assumes drupal/config_installer is included in the D8 composer.json and
@@ -90,13 +97,13 @@ storeconfig:
 
 # Run as needed.
 updatedb7:
-	${DRUSH7} sql-sync @d7.dev @docker7.docker -y
+	${DRUSH7} sql-sync ${DRUSH_ALIAS7} @docker7.docker -y
 	${DRUSH7} updb -y
 	${DRUSH7} cc all
 
 # Run as needed.
 updatefiles7:
-	${DRUSH7} rsync @d7.dev:%files/ @docker7.docker:%files -y
+	${DRUSH7} rsync ${DRUSH_ALIAS7}:%files/ @docker7.docker:%files -y
 	${DRUSH7} cc all
 
 # Adjustments needed to make the D7 site usable locally.
@@ -136,8 +143,8 @@ dockerclean:
 create: initialize install initialize7 localize7
 
 # run after destroy
-recreate: updatedb7 updatefiles7
+recreate: updatedb7 localize7 updatefiles7
 
 # run after stop
-restart: updatedb7 updatefiles7
+restart: updatedb7 localize7 updatefiles7
 
