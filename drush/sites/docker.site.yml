@@ -1,0 +1,4 @@
+docker:
+  root: /var/www/html/web
+  uri: http://ngnix
+  

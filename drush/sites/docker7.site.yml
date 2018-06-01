@@ -1,0 +1,3 @@
+docker:
+  root: /var/www/html/docroot
+  uri: http://ngnix7
