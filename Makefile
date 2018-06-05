@@ -21,6 +21,7 @@ FILES_DIR=${SITES_DIR}/files
 CONFIG_DIR=${SITES_DIR}/files/sync
 
 # Source data
+SOURCE7=http://edit.lullabot.com/
 DRUSH_ALIAS7=@lullabot.dev
 SETTINGS=${PARENT_ROOT}/${SITES_DIR}/settings.php
 SETTINGS7=${PARENT_ROOT7}/${SITES_DIR}/settings.php
@@ -59,12 +60,12 @@ initialize:
 	echo "\$$local_settings = __DIR__ . '/settings.docker.local.php';\nif (file_exists(\$$local_settings) && !empty(\$$_SERVER['WODBY_DIR_FILES'])) {\n  include \$$local_settings;\n}" >> ${SETTINGS}
 	chmod 444 ${SETTINGS}
 	cp ${SETTINGS_LOCAL} ${PARENT_ROOT}/${SITES_DIR}/settings.docker.local.php
-	if [ ! -f ${PARENT_ROOT}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT}/${FILES_DIR}; fi;
+	if [ ! -d ${PARENT_ROOT}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT}/${FILES_DIR}; fi;
 	chmod -R g+w ${PARENT_ROOT}/${FILES_DIR}
 	chmod 2775 ${PARENT_ROOT}/${FILES_DIR}
 	# Druah 9-style alias
-	if [ ! -f ${CURRENT_DIR}/d8/drush ]; then mkdir ${CURRENT_DIR}/d8/drush; fi;
-	if [ ! -f ${CURRENT_DIR}/d8/drush/sites ]; then mkdir ${CURRENT_DIR}/d8/drush/sites; fi;
+	if [ ! -d ${CURRENT_DIR}/d8/drush ]; then mkdir ${CURRENT_DIR}/d8/drush; fi;
+	if [ ! -d ${CURRENT_DIR}/d8/drush/sites ]; then mkdir ${CURRENT_DIR}/d8/drush/sites; fi;
 	cp ${CURRENT_DIR}/drush/sites/docker.site.yml ${CURRENT_DIR}/d8/drush/sites/docker.site.yml
 
 # Set up D7 site
@@ -76,20 +77,29 @@ initialize7:
 	chmod 777 ${SETTINGS7}
 	echo "\$$local_settings = __DIR__ . '/settings.docker.local.php';\nif (file_exists(\$$local_settings) && !empty(\$$_SERVER['WODBY_DIR_FILES'])) {\n  include \$$local_settings;\n}" >> ${SETTINGS7}
 	chmod 444 ${SETTINGS7}
-	if [ ! -f ${PARENT_ROOT7}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT7}/${FILES_DIR}; fi;
+	if [ ! -d ${PARENT_ROOT7}/${FILES_DIR} ]; then mkdir -p ${PARENT_ROOT7}/${FILES_DIR}; fi;
 	chmod -R g+w ${PARENT_ROOT7}/${FILES_DIR}
 	chmod 2775 ${PARENT_ROOT7}/${FILES_DIR}
 	# Drush 8-style alias
-	if [ ! -f ${CURRENT_DIR}/d7/drush ]; then mkdir ${CURRENT_DIR}/d7/drush; fi;
-	if [ ! -f ${CURRENT_DIR}/d7/drush/site-aliases ]; then mkdir ${CURRENT_DIR}/d7/drush/site-aliases; fi;
+	if [ ! -d ${CURRENT_DIR}/d7/drush ]; then mkdir ${CURRENT_DIR}/d7/drush; fi;
+	if [ ! -d ${CURRENT_DIR}/d7/drush/site-aliases ]; then mkdir ${CURRENT_DIR}/d7/drush/site-aliases; fi;
 	cp ${CURRENT_DIR}/drush/site-aliases/docker7.aliases.drushrc.php ${CURRENT_DIR}/d7/drush/site-aliases/docker7.aliases.drushrc.php
 
 # Create empty D8 site from stored configuration.
 # Assumes drupal/config_installer is included in the D8 composer.json and
 # that a basic site install was done, modules enabled, etc before saving config.
 install:
-	composer install
+	composer install -d=${CURRENT_DIR}/d8
 	${DRUSH} si --verbose config_installer config_installer_sync_configure_form.sync_directory=${CONFIG_DIR} --yes
+
+# Initial setup of D8 site
+modules:
+	${DRUSH} en media ctools entity_browser entity_reference_revisions paragraphs field_group htmlpurifier markdown migrate migrate_drupal migrate_plus migrate_tools migrate_upgrade pathauto token tzfield -y
+	${DRUSH} pm-uninstall automated_cron rdf quick_edit comment -y
+
+# Adjustments needed to make the D8 site usable locally.
+localize:
+	${DRUSH} user:password admin admin
 
 # Store configuration
 storeconfig:
@@ -110,7 +120,7 @@ updatefiles7:
 localize7:
 	${DRUSH7} upwd admin --password=admin
 	${DRUSH7} pm-disable lullabot_edit_exporter -y
-	${DRUSH7} en field_ui views_ui
+	${DRUSH7} en field_ui views_ui -y
 
 # Run as needed.
 update:
@@ -118,8 +128,16 @@ update:
 	${DRUSH} updb -y
 
 # Run as needed.
+migrateconfig:
+	${DRUSH} en media -y
+	${DRUSH} migrate-upgrade --legacy-db-key="drupal_7" --legacy-root="${SOURCE7}" --configure-only
+	${DRUSH} ms
+
+# Run as needed.
 migrate:
-	${DRUSH} migrate-upgrade --legacy-db-key="drupal_7" --legacy-root="http://nginix7" --configure-only
+	${DRUSH} ms
+	${DRUSH} migrate:import --all
+	${DRUSH} ms
 
 # Start the containers and watch the logs to see when they're ready.
 # Exit logs with ctl-c.
@@ -139,12 +157,7 @@ destroy:
 dockerclean:
 	docker system prune
 
-# run first time
-create: initialize install initialize7 localize7
-
-# run after destroy
-recreate: updatedb7 localize7 updatefiles7
-
-# run after stop
-restart: updatedb7 localize7 updatefiles7
+# Shortcuts
+create: initialize install localize initialize7 localize7
+update7: updatedb7 localize7 updatefiles7
 
